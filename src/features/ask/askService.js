@@ -35,6 +35,22 @@ try {
 }
 let lastScreenshot = null;
 
+/**
+ * Cleans up user input without destroying code formatting: normalizes line endings and
+ * invisible characters that often come along with copied code, drops leading/trailing blank
+ * lines, but keeps the indentation of the first line (a plain .trim() would eat it).
+ * @param {string} text
+ * @returns {string}
+ */
+function normalizeUserPrompt(text) {
+    return (text || '')
+        .replace(/\r\n?/g, '\n')
+        .replace(/\u00A0/g, ' ')
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .replace(/^(?:[ \t]*\n)+/, '')
+        .trimEnd();
+}
+
 async function captureScreenshot(options = {}) {
     if (process.platform === 'darwin') {
         try {
@@ -47,10 +63,11 @@ async function captureScreenshot(options = {}) {
 
             if (sharp) {
                 try {
-                    // Try using sharp for optimal image processing
+                    // Keep enough resolution for code/text on screen to stay legible to the model.
+                    // 1568px on the long edge is the largest size vision models use without downscaling.
                     const resizedBuffer = await sharp(imageBuffer)
-                        .resize({ height: 384 })
-                        .jpeg({ quality: 80 })
+                        .resize({ width: 1568, height: 1568, fit: 'inside', withoutEnlargement: true })
+                        .jpeg({ quality: 85 })
                         .toBuffer();
 
                     const base64 = resizedBuffer.toString('base64');
@@ -216,6 +233,7 @@ class AskService {
      * @returns {Promise<{success: boolean, response?: string, error?: string}>}
      */
     async sendMessage(userPrompt, conversationHistoryRaw=[]) {
+        userPrompt = normalizeUserPrompt(userPrompt);
         internalBridge.emit('window:requestVisibility', { name: 'ask', visible: true });
         this.state = {
             ...this.state,
@@ -240,7 +258,7 @@ class AskService {
             console.log(`[AskService] 🤖 Processing message: ${userPrompt.substring(0, 50)}...`);
 
             sessionId = await sessionRepository.getOrCreateActive('ask');
-            await askRepository.addAiMessage({ sessionId, role: 'user', content: userPrompt.trim() });
+            await askRepository.addAiMessage({ sessionId, role: 'user', content: userPrompt });
             console.log(`[AskService] DB: Saved user prompt to session ${sessionId}`);
             
             const modelInfo = await modelStateService.getCurrentModelInfo('llm');
@@ -261,7 +279,7 @@ class AskService {
                 {
                     role: 'user',
                     content: [
-                        { type: 'text', text: `User Request: ${userPrompt.trim()}` },
+                        { type: 'text', text: `User Request: ${userPrompt}` },
                     ],
                 },
             ];
@@ -276,8 +294,10 @@ class AskService {
             const streamingLLM = createStreamingLLM(modelInfo.provider, {
                 apiKey: modelInfo.apiKey,
                 model: modelInfo.model,
-                temperature: 0.7,
-                maxTokens: 2048,
+                // Lower temperature keeps code output precise; the larger budget stops
+                // full solutions (code + explanation) from being cut off mid-block.
+                temperature: 0.4,
+                maxTokens: 4096,
                 usePortkey: modelInfo.provider === 'openai-glass',
                 portkeyVirtualKey: modelInfo.provider === 'openai-glass' ? modelInfo.apiKey : undefined,
             });
@@ -311,7 +331,7 @@ class AskService {
                         { role: 'system', content: systemPrompt },
                         {
                             role: 'user',
-                            content: `User Request: ${userPrompt.trim()}`
+                            content: `User Request: ${userPrompt}`
                         }
                     ];
 
@@ -340,10 +360,13 @@ class AskService {
 
         } catch (error) {
             console.error('[AskService] Error during message processing:', error);
+            // Nothing listens for 'ask-response-stream-error' in the renderer, so surface the
+            // failure in the response itself instead of leaving an empty window.
             this.state = {
                 ...this.state,
                 isLoading: false,
                 isStreaming: false,
+                currentResponse: `> ⚠️ **Request failed:** ${error.message || 'Unknown error occurred'}`,
                 showTextInput: true,
             };
             this._broadcastState();
@@ -370,6 +393,11 @@ class AskService {
     async _processStream(reader, askWin, sessionId, signal) {
         const decoder = new TextDecoder();
         let fullResponse = '';
+        // Network chunks can end mid-line (or mid-UTF-8 character). Carry the incomplete tail
+        // over to the next read; otherwise its JSON fails to parse and tokens are silently
+        // dropped, which shows up as missing characters and broken indentation in code.
+        let buffer = '';
+        let errorNote = '';
 
         try {
             this.state.isLoading = false;
@@ -377,12 +405,13 @@ class AskService {
             this._broadcastState();
             while (true) {
                 const { done, value } = await reader.read();
-                if (done) break;
+                buffer += done ? decoder.decode() : decoder.decode(value, { stream: true });
 
-                const chunk = decoder.decode(value);
-                const lines = chunk.split('\n').filter(line => line.trim() !== '');
+                const lines = buffer.split('\n');
+                buffer = done ? '' : lines.pop();
 
-                for (const line of lines) {
+                for (const rawLine of lines) {
+                    const line = rawLine.trim();
                     if (line.startsWith('data: ')) {
                         const data = line.substring(6);
                         if (data === '[DONE]') {
@@ -400,19 +429,23 @@ class AskService {
                         }
                     }
                 }
+
+                if (done) break;
             }
         } catch (streamError) {
             if (signal.aborted) {
                 console.log(`[AskService] Stream reading was intentionally cancelled. Reason: ${signal.reason}`);
             } else {
                 console.error('[AskService] Error while processing stream:', streamError);
+                errorNote = `${fullResponse ? '\n\n' : ''}> ⚠️ **Response interrupted:** ${streamError.message}`;
                 if (askWin && !askWin.isDestroyed()) {
                     askWin.webContents.send('ask-response-stream-error', { error: streamError.message });
                 }
             }
         } finally {
             this.state.isStreaming = false;
-            this.state.currentResponse = fullResponse;
+            // The note is display-only; the DB keeps just the model's text
+            this.state.currentResponse = fullResponse + errorNote;
             this._broadcastState();
             if (fullResponse) {
                  try {

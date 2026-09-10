@@ -1,6 +1,51 @@
 import { html, css, LitElement } from '../../ui/assets/lit-core-2.7.4.min.js';
 import { parser, parser_write, parser_end, default_renderer } from '../../ui/assets/smd.js';
 
+// Strips characters that commonly sneak in with copied text (non-breaking and zero-width
+// spaces, CRLF) and silently break indentation-sensitive code.
+function normalizeWhitespace(text) {
+    return (text || '')
+        .replace(/\r\n?/g, '\n')
+        .replace(/\u00A0/g, ' ')
+        .replace(/[\u200B-\u200D\uFEFF]/g, '');
+}
+
+// Prepares code for the clipboard so it pastes cleanly into an editor: normalizes whitespace,
+// removes trailing spaces and surrounding blank lines, and strips indentation shared by every
+// line (models often indent code blocks nested under list items).
+function normalizeCodeForClipboard(text) {
+    const lines = normalizeWhitespace(text)
+        .split('\n')
+        .map(line => line.replace(/[ \t]+$/, ''));
+
+    while (lines.length && lines[0] === '') lines.shift();
+    while (lines.length && lines[lines.length - 1] === '') lines.pop();
+
+    let commonIndent = null;
+    for (const line of lines) {
+        if (!line) continue;
+        const indent = line.match(/^[ \t]*/)[0];
+        if (commonIndent === null) {
+            commonIndent = indent;
+        } else {
+            let i = 0;
+            while (i < commonIndent.length && i < indent.length && commonIndent[i] === indent[i]) i++;
+            commonIndent = commonIndent.slice(0, i);
+        }
+        if (!commonIndent) break;
+    }
+
+    const dedented = commonIndent ? lines.map(line => line.slice(commonIndent.length)) : lines;
+    return dedented.join('\n');
+}
+
+function getCodeLanguage(codeEl) {
+    const lang = [...codeEl.classList]
+        .map(cls => cls.replace(/^lang(?:uage)?-/, ''))
+        .find(cls => cls && cls !== 'hljs');
+    return lang || 'code';
+}
+
 export class AskView extends LitElement {
     static properties = {
         currentResponse: { type: String },
@@ -138,6 +183,66 @@ export class AskView extends LitElement {
             padding: 2px 4px !important;
             border-radius: 3px !important;
             color: #ffd700 !important;
+        }
+
+        .response-container pre,
+        .response-container code {
+            tab-size: 4;
+        }
+
+        .response-container .code-block {
+            position: relative;
+            margin: 8px 0;
+        }
+
+        .response-container .code-block pre {
+            margin: 0 !important;
+            padding-top: 32px !important;
+        }
+
+        .response-container .code-block-toolbar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 6px 0 12px;
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: lowercase;
+            z-index: 1;
+        }
+
+        .response-container .code-block-toolbar,
+        .response-container .code-block-toolbar * {
+            user-select: none !important;
+            cursor: default !important;
+        }
+
+        .response-container .code-copy-button {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 10px;
+            padding: 2px 8px;
+            cursor: pointer !important;
+            transition: background-color 0.15s ease;
+        }
+
+        .response-container .code-copy-button:hover {
+            background: rgba(255, 255, 255, 0.18);
+        }
+
+        .response-container .code-copy-button.copied {
+            background: rgba(40, 167, 69, 0.35);
+            border-color: rgba(40, 167, 69, 0.6);
         }
 
         .hljs-keyword {
@@ -487,7 +592,7 @@ export class AskView extends LitElement {
 
         .text-input-container {
             display: flex;
-            align-items: center;
+            align-items: flex-end;
             gap: 8px;
             padding: 12px 16px;
             background: rgba(0, 0, 0, 0.1);
@@ -514,13 +619,23 @@ export class AskView extends LitElement {
             flex: 1;
             padding: 10px 14px;
             background: rgba(0, 0, 0, 0.2);
-            border-radius: 20px;
+            border-radius: 16px;
             outline: none;
             border: none;
             color: white;
             font-size: 14px;
             font-family: 'Helvetica Neue', sans-serif;
             font-weight: 400;
+            line-height: 20px;
+            height: 40px;
+            max-height: 160px;
+            box-sizing: border-box;
+            resize: none;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            tab-size: 4;
+            user-select: text;
+            cursor: text;
         }
 
         #textInput::placeholder {
@@ -740,6 +855,13 @@ export class AskView extends LitElement {
         this.handleScroll = this.handleScroll.bind(this);
         this.handleCloseAskWindow = this.handleCloseAskWindow.bind(this);
         this.handleCloseIfNoContent = this.handleCloseIfNoContent.bind(this);
+        this.handleTextInput = this.handleTextInput.bind(this);
+        this.handleTextPaste = this.handleTextPaste.bind(this);
+        this.handleResponseCopy = this.handleResponseCopy.bind(this);
+
+        this.lineCopyState = {};
+        this.lineCopyTimeouts = {};
+        this.smdEnded = false;
 
         this.loadLibraries();
 
@@ -910,6 +1032,13 @@ export class AskView extends LitElement {
         if (e.key === 'Escape') {
             e.preventDefault();
             this.handleCloseIfNoContent();
+            return;
+        }
+
+        // Cmd/Ctrl+Shift+C copies just the code from the current answer
+        if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'c') {
+            e.preventDefault();
+            this.handleCopyAllCode();
         }
     }
 
@@ -1024,6 +1153,7 @@ export class AskView extends LitElement {
         this.smdParser = null;
         this.smdContainer = null;
         this.lastProcessedLength = 0;
+        this.smdEnded = false;
     }
 
     renderStreamingMarkdown(responseContainer) {
@@ -1037,6 +1167,7 @@ export class AskView extends LitElement {
                 const renderer = default_renderer(this.smdContainer);
                 this.smdParser = parser(renderer);
                 this.lastProcessedLength = 0;
+                this.smdEnded = false;
             }
 
             // 새로운 텍스트만 처리 (스트리밍 최적화)
@@ -1049,13 +1180,19 @@ export class AskView extends LitElement {
                 this.lastProcessedLength = currentText.length;
             }
 
-            // 스트리밍이 완료되면 파서 종료
-            if (!this.isStreaming && !this.isLoading) {
+            const isComplete = !this.isStreaming && !this.isLoading;
+
+            // 스트리밍이 완료되면 파서 종료 (flushes characters the parser is still holding back)
+            if (isComplete && !this.smdEnded) {
                 parser_end(this.smdParser);
+                this.smdEnded = true;
             }
 
-            // 코드 하이라이팅 적용
-            if (this.hljs) {
+            this.decorateCodeBlocks(responseContainer);
+
+            // 코드 하이라이팅 적용 — only once the answer is complete, since highlighting a
+            // half-streamed block leaves the rest of it unhighlighted
+            if (this.hljs && isComplete) {
                 responseContainer.querySelectorAll('pre code').forEach(block => {
                     if (!block.hasAttribute('data-highlighted')) {
                         this.hljs.highlightElement(block);
@@ -1100,6 +1237,7 @@ export class AskView extends LitElement {
                         this.hljs.highlightElement(block);
                     });
                 }
+                this.decorateCodeBlocks(responseContainer);
             } catch (error) {
                 console.error('Error in fallback rendering:', error);
                 responseContainer.textContent = textToRender;
@@ -1121,9 +1259,94 @@ export class AskView extends LitElement {
     }
 
 
+    // Wraps each <pre> in a container with a language label and a Copy button. Safe to call
+    // repeatedly while streaming: smd keeps writing into the <code> element, not the <pre>.
+    decorateCodeBlocks(container) {
+        container.querySelectorAll('pre').forEach(pre => {
+            const code = pre.querySelector('code');
+            if (!code) return;
+
+            const existing = pre.parentElement?.classList.contains('code-block') ? pre.parentElement : null;
+            if (existing) {
+                existing.querySelector('.code-lang').textContent = getCodeLanguage(code);
+                return;
+            }
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'code-block';
+            pre.parentNode.insertBefore(wrapper, pre);
+            wrapper.appendChild(pre);
+
+            const toolbar = document.createElement('div');
+            toolbar.className = 'code-block-toolbar';
+
+            const label = document.createElement('span');
+            label.className = 'code-lang';
+            label.textContent = getCodeLanguage(code);
+
+            const button = document.createElement('button');
+            button.className = 'code-copy-button';
+            button.textContent = 'Copy';
+            button.title = 'Copy code';
+            button.addEventListener('click', e => {
+                e.stopPropagation();
+                this.copyCodeBlock(code, button);
+            });
+
+            toolbar.append(label, button);
+            wrapper.insertBefore(toolbar, pre);
+        });
+    }
+
+    async copyCodeBlock(codeEl, button) {
+        const copied = await this.writeToClipboard(normalizeCodeForClipboard(codeEl.textContent));
+        if (!copied) return;
+
+        button.textContent = 'Copied';
+        button.classList.add('copied');
+        clearTimeout(button._resetTimeout);
+        button._resetTimeout = setTimeout(() => {
+            button.textContent = 'Copy';
+            button.classList.remove('copied');
+        }, 1500);
+    }
+
+    async writeToClipboard(text) {
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch (err) {
+            // navigator.clipboard can reject when the window isn't focused; fall back to execCommand
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            const ok = document.execCommand('copy');
+            textarea.remove();
+            if (!ok) console.error('Failed to copy:', err);
+            return ok;
+        }
+    }
+
+    // When a selection lies inside a single code block, copy it as clean plain text instead of
+    // styled HTML, so it pastes into editors with its indentation intact.
+    handleResponseCopy(e) {
+        const selection = this.shadowRoot.getSelection ? this.shadowRoot.getSelection() : window.getSelection();
+        if (!selection || selection.isCollapsed) return;
+
+        const preOf = node => (node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement)?.closest('pre');
+        const pre = preOf(selection.anchorNode);
+        if (!pre || pre !== preOf(selection.focusNode)) return;
+
+        e.preventDefault();
+        e.clipboardData.setData('text/plain', normalizeCodeForClipboard(selection.toString()));
+    }
+
     requestWindowResize(targetHeight) {
         if (window.api) {
-            window.api.askView.adjustWindowHeight(targetHeight);
+            window.api.askView.adjustWindowHeight('ask', targetHeight);
         }
     }
 
@@ -1204,22 +1427,25 @@ export class AskView extends LitElement {
     async handleCopy() {
         if (this.copyState === 'copied') return;
 
-        let responseToCopy = this.currentResponse;
+        // Copy only the answer (as markdown) — the "Question:/Answer:" wrapper got in the way
+        // when pasting into notes or editors.
+        await this.copyTextWithFeedback(normalizeWhitespace(this.currentResponse).trim());
+    }
 
-        if (this.isDOMPurifyLoaded && this.DOMPurify) {
-            const testHtml = this.renderMarkdown(responseToCopy);
-            const sanitized = this.DOMPurify.sanitize(testHtml);
+    // Copies every code block in the answer, separated by blank lines (Cmd/Ctrl+Shift+C).
+    async handleCopyAllCode() {
+        const codeBlocks = [...(this.shadowRoot?.querySelectorAll('#responseContainer pre code') || [])];
+        if (codeBlocks.length === 0) return;
 
-            if (this.DOMPurify.removed && this.DOMPurify.removed.length > 0) {
-                console.warn('Unsafe content detected, copy blocked');
-                return;
-            }
-        }
+        const text = codeBlocks.map(code => normalizeCodeForClipboard(code.textContent)).join('\n\n');
+        await this.copyTextWithFeedback(text);
+    }
 
-        const textToCopy = `Question: ${this.currentQuestion}\n\nAnswer: ${responseToCopy}`;
+    async copyTextWithFeedback(textToCopy) {
+        if (this.copyState === 'copied' || !textToCopy) return;
 
         try {
-            await navigator.clipboard.writeText(textToCopy);
+            if (!(await this.writeToClipboard(textToCopy))) return;
             console.log('Content copied to clipboard');
 
             this.copyState = 'copied';
@@ -1271,10 +1497,15 @@ export class AskView extends LitElement {
 
     async handleSendText(e, overridingText = '') {
         const textInput = this.shadowRoot?.getElementById('textInput');
-        const text = (overridingText || textInput?.value || '').trim();
+        const rawText = overridingText || textInput?.value || '';
+        // Keep the text as typed/pasted (indentation matters for code); the service normalizes it
+        const text = rawText.trim() ? rawText : '';
         // if (!text) return;
 
-        textInput.value = '';
+        if (textInput) {
+            textInput.value = '';
+            this.autoResizeTextInput();
+        }
 
         if (window.api) {
             window.api.askView.sendMessage(text).catch(error => {
@@ -1289,6 +1520,14 @@ export class AskView extends LitElement {
             return;
         }
 
+        // Tab indents inside the input instead of moving focus away
+        if (e.key === 'Tab' && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) {
+            e.preventDefault();
+            this.insertTextAtCursor(e.target, '    ');
+            return;
+        }
+
+        // Enter sends; Shift+Enter falls through and inserts a newline
         const isPlainEnter = e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey;
         const isModifierEnter = e.key === 'Enter' && (e.metaKey || e.ctrlKey);
 
@@ -1298,11 +1537,47 @@ export class AskView extends LitElement {
         }
     }
 
+    handleTextInput() {
+        this.autoResizeTextInput();
+    }
+
+    // Pasted code often carries CRLF line endings or non-breaking/zero-width spaces
+    // (from browsers, Slack, docs); clean them up before they reach the input.
+    handleTextPaste(e) {
+        const pasted = e.clipboardData?.getData('text/plain');
+        if (!pasted) return;
+
+        const cleaned = normalizeWhitespace(pasted);
+        if (cleaned === pasted) return;
+
+        e.preventDefault();
+        this.insertTextAtCursor(e.target, cleaned);
+    }
+
+    insertTextAtCursor(textarea, text) {
+        // execCommand keeps native undo (Cmd+Z) working; setRangeText is the fallback
+        if (!document.execCommand('insertText', false, text)) {
+            textarea.setRangeText(text, textarea.selectionStart, textarea.selectionEnd, 'end');
+        }
+        this.autoResizeTextInput();
+    }
+
+    autoResizeTextInput() {
+        const textInput = this.shadowRoot?.getElementById('textInput');
+        if (!textInput) return;
+
+        textInput.style.height = 'auto';
+        textInput.style.height = `${Math.min(textInput.scrollHeight, 160)}px`;
+        this.adjustWindowHeightThrottled();
+    }
+
     updated(changedProperties) {
         super.updated(changedProperties);
     
         // ✨ isLoading 또는 currentResponse가 변경될 때마다 뷰를 다시 그립니다.
-        if (changedProperties.has('isLoading') || changedProperties.has('currentResponse')) {
+        // isStreaming matters too: the final state update flips it off without changing the
+        // response text, and that's when the parser gets flushed and code gets highlighted.
+        if (changedProperties.has('isLoading') || changedProperties.has('currentResponse') || changedProperties.has('isStreaming')) {
             this.renderContent();
         }
     
@@ -1376,19 +1651,22 @@ export class AskView extends LitElement {
                 </div>
 
                 <!-- Response Container -->
-                <div class="response-container ${!hasResponse ? 'hidden' : ''}" id="responseContainer">
+                <div class="response-container ${!hasResponse ? 'hidden' : ''}" id="responseContainer" @copy=${this.handleResponseCopy}>
                     <!-- Content is dynamically generated in updateResponseContent() -->
                 </div>
 
                 <!-- Text Input Container -->
                 <div class="text-input-container ${!hasResponse ? 'no-response' : ''} ${!this.showTextInput ? 'hidden' : ''}">
-                    <input
-                        type="text"
+                    <textarea
                         id="textInput"
+                        rows="1"
+                        spellcheck="false"
                         placeholder="Ask about your screen or audio"
                         @keydown=${this.handleTextKeydown}
+                        @input=${this.handleTextInput}
+                        @paste=${this.handleTextPaste}
                         @focus=${this.handleInputFocus}
-                    />
+                    ></textarea>
                     <button
                         class="submit-btn"
                         @click=${this.handleSendText}
