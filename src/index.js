@@ -255,7 +255,14 @@ app.on('before-quit', async (event) => {
     
     // Prevent immediate quit to allow graceful shutdown
     event.preventDefault();
-    
+
+    // Remove the menu bar/tray icon right away so it doesn't linger during shutdown
+    try {
+        require('./window/windowManager').destroyTray();
+    } catch (trayError) {
+        console.warn('[Shutdown] Could not destroy tray:', trayError.message);
+    }
+
     try {
         // 1. Stop audio capture first (immediate)
         await listenService.closeSession();

@@ -1,4 +1,4 @@
-const { BrowserWindow, globalShortcut, screen, app, shell } = require('electron');
+const { BrowserWindow, globalShortcut, screen, app, shell, Tray, Menu, nativeImage } = require('electron');
 const WindowLayoutManager = require('./windowLayoutManager');
 const SmoothMovementManager = require('./smoothMovementManager');
 const path = require('node:path');
@@ -39,6 +39,7 @@ let settingsHideTimer = null;
 
 let layoutManager = null;
 let movementManager = null;
+let tray = null;
 
 
 function updateChildWindowLayouts(animated = true) {
@@ -637,6 +638,41 @@ function getCurrentDisplay(window) {
 
 
 
+function createTray() {
+    if (tray) return tray;
+
+    const iconPath = path.join(__dirname, '../ui/assets/logo.png');
+    const trayIconSize = process.platform === 'darwin' ? 18 : 16;
+    const trayIcon = nativeImage.createFromPath(iconPath).resize({ width: trayIconSize, height: trayIconSize });
+
+    tray = new Tray(trayIcon);
+    tray.setToolTip('Gimly');
+
+    const toggleVisibility = () => {
+        const header = windowPool.get('header');
+        if (!header || header.isDestroyed()) return;
+        changeAllWindowsVisibility(windowPool, undefined);
+    };
+
+    const contextMenu = Menu.buildFromTemplate([
+        { label: 'Show/Hide Gimly', click: toggleVisibility },
+        { type: 'separator' },
+        { label: 'Quit Gimly', click: () => app.quit() },
+    ]);
+
+    tray.on('click', toggleVisibility);
+    tray.on('right-click', () => tray.popUpContextMenu(contextMenu));
+
+    return tray;
+}
+
+function destroyTray() {
+    if (tray && !tray.isDestroyed()) {
+        tray.destroy();
+    }
+    tray = null;
+}
+
 function createWindows() {
     const HEADER_HEIGHT        = 47;
     const DEFAULT_WINDOW_WIDTH = 353;
@@ -698,6 +734,8 @@ function createWindows() {
     windowPool.set('header', header);
     layoutManager = new WindowLayoutManager(windowPool);
     movementManager = new SmoothMovementManager(windowPool);
+
+    createTray();
 
 
     header.on('moved', () => {
@@ -792,6 +830,8 @@ const handleHeaderStateChanged = (state) => {
 
 module.exports = {
     createWindows,
+    createTray,
+    destroyTray,
     windowPool,
     toggleContentProtection,
     resizeHeaderWindow,
