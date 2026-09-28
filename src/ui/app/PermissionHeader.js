@@ -30,7 +30,7 @@ export class PermissionHeader extends LitElement {
             width: 285px;
             /* height is now set dynamically */
             padding: 18px 20px;
-            background: rgba(0, 0, 0, 0.3);
+            background: rgba(0, 0, 0, 0.9);
             border-radius: 16px;
             overflow: hidden;
             position: relative;
@@ -194,6 +194,21 @@ export class PermissionHeader extends LitElement {
             cursor: not-allowed;
         }
 
+        .skip-button {
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.55);
+            font-size: 11px;
+            padding: 4px 0 0 0;
+            cursor: pointer;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        .skip-button:hover {
+            color: rgba(255, 255, 255, 0.85);
+        }
+
         .continue-button {
             -webkit-app-region: no-drag;
             width: 100%;
@@ -282,9 +297,17 @@ export class PermissionHeader extends LitElement {
 
     updated(changedProperties) {
         super.updated(changedProperties);
-        if (changedProperties.has('userMode')) {
-            const newHeight = this.userMode === 'firebase' ? 280 : 220;
-            console.log(`[PermissionHeader] User mode changed to ${this.userMode}, requesting resize to ${newHeight}px`);
+        // The container is taller while access is still outstanding, because of the extra
+        // "continue anyway" row, so resize on grant changes too rather than on userMode alone.
+        const affectsHeight = ['userMode', 'microphoneGranted', 'screenGranted', 'keychainGranted'];
+        if (affectsHeight.some(prop => changedProperties.has(prop))) {
+            const isKeychainRequired = this.userMode === 'firebase';
+            const keychainOk = !isKeychainRequired || this.keychainGranted === 'granted';
+            const allGranted = this.microphoneGranted === 'granted' && this.screenGranted === 'granted' && keychainOk;
+            const newHeight = allGranted
+                ? (isKeychainRequired ? 280 : 220)
+                : (isKeychainRequired ? 312 : 252);
+            console.log(`[PermissionHeader] Requesting resize to ${newHeight}px`);
             this.dispatchEvent(new CustomEvent('request-resize', {
                 detail: { height: newHeight },
                 bubbles: true,
@@ -464,7 +487,31 @@ export class PermissionHeader extends LitElement {
                     console.error('[PermissionHeader] Error marking keychain as completed:', error);
                 }
             }
-            
+
+            await this._rememberCompletion();
+            this.continueCallback();
+        }
+    }
+
+    async _rememberCompletion() {
+        if (!window.api) return;
+        try {
+            await window.api.permissionHeader.markPermissionsCompleted();
+        } catch (error) {
+            console.error('[PermissionHeader] Error marking permissions as completed:', error);
+        }
+    }
+
+    /**
+     * macOS reports a stale status for builds whose code signature it cannot pin (an ad-hoc or
+     * unsigned build, or two bundles sharing one bundle id), so the screen can reappear on every
+     * launch for access the user already granted. This lets them proceed; Listen and screenshots
+     * still fail loudly if the access genuinely is not there.
+     */
+    async handleSkip() {
+        console.log('[PermissionHeader] User chose to continue without a confirmed grant');
+        await this._rememberCompletion();
+        if (this.continueCallback) {
             this.continueCallback();
         }
     }
@@ -478,9 +525,9 @@ export class PermissionHeader extends LitElement {
 
     render() {
         const isKeychainRequired = this.userMode === 'firebase';
-        const containerHeight = isKeychainRequired ? 280 : 220;
         const keychainOk = !isKeychainRequired || this.keychainGranted === 'granted';
         const allGranted = this.microphoneGranted === 'granted' && this.screenGranted === 'granted' && keychainOk;
+        const containerHeight = allGranted ? (isKeychainRequired ? 280 : 220) : (isKeychainRequired ? 312 : 252);
 
         return html`
             <div class="container" style="height: ${containerHeight}px">
@@ -569,6 +616,10 @@ export class PermissionHeader extends LitElement {
                                 Stores the key to encrypt your data. Press "<b>Always Allow</b>" to continue.
                             </div>
                         ` : ''}
+
+                        <button class="skip-button" @click=${this.handleSkip}>
+                            Already granted these — continue anyway
+                        </button>
                     ` : html`
                         <button 
                             class="continue-button" 

@@ -133,6 +133,7 @@ contextBridge.exposeInMainWorld('api', {
     openSystemPreferences: (preference) => ipcRenderer.invoke('open-system-preferences', preference),
     markKeychainCompleted: () => ipcRenderer.invoke('mark-keychain-completed'),
     checkKeychainCompleted: (uid) => ipcRenderer.invoke('check-keychain-completed', uid),
+    markPermissionsCompleted: () => ipcRenderer.invoke('mark-permissions-completed'),
     initializeEncryptionKey: () => ipcRenderer.invoke('initialize-encryption-key') // New for keychain
   },
 
@@ -200,6 +201,15 @@ contextBridge.exposeInMainWorld('api', {
 
   // src/ui/settings/SettingsView.js
   settingsView: {
+    // Answer style (live meeting vs interview prep)
+    getPromptMode: () => ipcRenderer.invoke('prompt-mode:get'),
+    listPromptModes: () => ipcRenderer.invoke('prompt-mode:list'),
+    setPromptMode: (mode) => ipcRenderer.invoke('prompt-mode:set', mode),
+
+    // Private context file (~/.gimly/context.md, outside the repo)
+    getUserContextStatus: () => ipcRenderer.invoke('user-context:status'),
+    openUserContextFile: () => ipcRenderer.invoke('user-context:open'),
+
     // User & Auth
     getCurrentUser: () => ipcRenderer.invoke('get-current-user'),
     openPersonalizePage: () => ipcRenderer.invoke('open-personalize-page'),

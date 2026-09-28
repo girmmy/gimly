@@ -494,8 +494,15 @@ class LocalAIManager extends EventEmitter {
     async updateServiceState(serviceName) {
         try {
             const status = await this.getServiceStatus(serviceName);
+            const previous = this.state[serviceName];
             this.state[serviceName] = status;
-            
+
+            // The periodic sync calls this every 30s. Announcing an unchanged status made every
+            // listener redo its work on a timer, forever.
+            if (previous && JSON.stringify(previous) === JSON.stringify(status)) {
+                return;
+            }
+
             // 상태 변경 이벤트 발행
             this.emit('state-changed', serviceName, status);
         } catch (error) {

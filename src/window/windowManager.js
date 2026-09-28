@@ -9,13 +9,19 @@ const permissionRepository = require('../features/common/repositories/permission
 
 /* ────────────────[ GLASS BYPASS ]─────────────── */
 let liquidGlass;
+// The liquid-glass path strips every window background (see the `has-glass` rules in the
+// views) and relies on private macOS APIs to paint the material underneath. When those APIs
+// change between macOS releases the material never lands, leaving transparent windows with
+// unreadable white text -- so it is opt-in rather than version-gated.
 const isLiquidGlassSupported = () => {
     if (process.platform !== 'darwin') {
         return false;
     }
+    if (process.env.GIMLY_LIQUID_GLASS !== '1') {
+        return false;
+    }
     const majorVersion = parseInt(os.release().split('.')[0], 10);
-    // return majorVersion >= 25; // macOS 26+ (Darwin 25+)
-    return majorVersion >= 26; // See you soon!
+    return majorVersion >= 25; // macOS 26 Tahoe (Darwin 25) and later
 };
 let shouldUseLiquidGlass = isLiquidGlassSupported();
 if (shouldUseLiquidGlass) {
@@ -30,6 +36,12 @@ if (shouldUseLiquidGlass) {
 
 let isContentProtectionOn = true;
 let lastVisibleWindows = new Set(['header']);
+
+// Windows the user has dragged to their own size. Auto-height leaves these alone afterwards,
+// otherwise the next streamed token snaps the window back and the resize feels broken.
+const userSizedWindows = new Set();
+// Set while auto-height animates, so a bounds change we caused is never mistaken for a drag.
+const autoResizingWindows = new Set();
 
 let currentHeaderState = 'apikey';
 const windowPool = new Map();
@@ -197,6 +209,9 @@ function setupWindowController(windowPool, layoutManager, movementManager) {
         }
     });
     internalBridge.on('window:adjustWindowHeight', ({ winName, targetHeight }) => {
+        if (userSizedWindows.has(winName)) {
+            return;
+        }
         console.log(`[Layout Debug] adjustWindowHeight: targetHeight=${targetHeight}`);
         const senderWindow = windowPool.get(winName);
         if (senderWindow) {
@@ -205,8 +220,10 @@ function setupWindowController(windowPool, layoutManager, movementManager) {
             const wasResizable = senderWindow.isResizable();
             if (!wasResizable) senderWindow.setResizable(true);
 
+            autoResizingWindows.add(winName);
             movementManager.animateWindowBounds(senderWindow, newBounds, {
                 onComplete: () => {
+                    autoResizingWindows.delete(winName);
                     if (!wasResizable) senderWindow.setResizable(false);
                     updateChildWindowLayouts(true);
                 }
@@ -492,7 +509,24 @@ function createFeatureWindows(header, namesToCreate) {
 
             // ask
             case 'ask': {
-                const ask = new BrowserWindow({ ...commonChildOptions, width:600 });
+                // Answers include full code blocks, so this one is user-resizable rather than
+                // locked to a fixed 600px like the other child windows.
+                const ask = new BrowserWindow({
+                    ...commonChildOptions,
+                    width: 680,
+                    minWidth: 420,
+                    maxWidth: 1400,
+                    minHeight: 120,
+                    maxHeight: 1400,
+                    resizable: true,
+                });
+                ask.on('will-resize', () => {
+                    if (autoResizingWindows.has('ask') || userSizedWindows.has('ask')) return;
+                    console.log('[WindowManager] Ask window resized by user; auto-height is now off');
+                    userSizedWindows.add('ask');
+                });
+                // A recreated window starts over with auto-height.
+                ask.on('closed', () => userSizedWindows.delete('ask'));
                 ask.setContentProtection(isContentProtectionOn);
                 ask.setVisibleOnAllWorkspaces(true,{visibleOnFullScreen:true});
                 if (process.platform === 'darwin') {
@@ -525,7 +559,7 @@ function createFeatureWindows(header, namesToCreate) {
 
             // settings
             case 'settings': {
-                const settings = new BrowserWindow({ ...commonChildOptions, width:240, maxHeight:400, parent:undefined });
+                const settings = new BrowserWindow({ ...commonChildOptions, width:260, maxHeight:560, parent:undefined });
                 settings.setContentProtection(isContentProtectionOn);
                 settings.setVisibleOnAllWorkspaces(true,{visibleOnFullScreen:true});
                 if (process.platform === 'darwin') {

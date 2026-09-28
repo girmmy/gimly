@@ -24,7 +24,7 @@ export class SummaryView extends LitElement {
 
         .insights-container code {
             font-family: 'Monaco', 'Menlo', 'Consolas', monospace !important;
-            font-size: 11px !important;
+            font-size: 12.5px !important;
             background: transparent !important;
             white-space: pre !important;
             word-wrap: normal !important;
@@ -114,7 +114,7 @@ export class SummaryView extends LitElement {
 
         .insights-container h4 {
             color: #ffffff;
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 600;
             margin: 12px 0 8px 0;
             padding: 4px 8px;
@@ -133,8 +133,8 @@ export class SummaryView extends LitElement {
 
         .outline-item {
             color: #ffffff;
-            font-size: 11px;
-            line-height: 1.4;
+            font-size: 13px;
+            line-height: 1.45;
             margin: 4px 0;
             padding: 6px 8px;
             border-radius: 4px;
@@ -150,8 +150,8 @@ export class SummaryView extends LitElement {
 
         .request-item {
             color: #ffffff;
-            font-size: 12px;
-            line-height: 1.2;
+            font-size: 13px;
+            line-height: 1.4;
             margin: 4px 0;
             padding: 6px 8px;
             border-radius: 4px;
@@ -173,8 +173,8 @@ export class SummaryView extends LitElement {
         /* 마크다운 렌더링된 콘텐츠 스타일 */
         .markdown-content {
             color: #ffffff;
-            font-size: 11px;
-            line-height: 1.4;
+            font-size: 13px;
+            line-height: 1.45;
             margin: 4px 0;
             padding: 6px 8px;
             border-radius: 4px;

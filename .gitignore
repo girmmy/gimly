@@ -113,3 +113,10 @@ data/*.db-wal
 out/
 dist/
 build/ 
+# Personal context Gimly reads about the user. The real file lives outside the repo at
+# ~/.gimly/context.md; these rules exist so a copy placed in the working tree can never be
+# committed by accident.
+.gimly/
+**/.gimly/
+context.local.md
+gimly-context.md

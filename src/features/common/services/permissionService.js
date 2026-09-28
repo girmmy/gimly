@@ -1,5 +1,10 @@
 const { systemPreferences, shell, desktopCapturer } = require('electron');
+const Store = require('electron-store');
 const permissionRepository = require('../repositories/permission');
+
+// Remembers that the user already walked the permission screen, so a launch where macOS reports
+// a stale status doesn't drop them back into setup. The live status is still what gates capture.
+const store = new Store({ name: 'gimly-permissions', defaults: { completed: false } });
 
 class PermissionService {
   _getAuthService() {
@@ -90,6 +95,27 @@ class PermissionService {
       return { success: true };
     } catch (error) {
       console.error('[Permissions] Error opening system preferences:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /** @returns {Promise<boolean>} whether the user has completed the permission screen before */
+  async checkPermissionsCompleted() {
+    try {
+      return store.get('completed', false) === true;
+    } catch (error) {
+      console.error('[Permissions] Error reading completion flag:', error);
+      return false;
+    }
+  }
+
+  async markPermissionsCompleted() {
+    try {
+      store.set('completed', true);
+      console.log('[Permissions] Marked permission setup as completed');
+      return { success: true };
+    } catch (error) {
+      console.error('[Permissions] Error marking permissions as completed:', error);
       return { success: false, error: error.message };
     }
   }

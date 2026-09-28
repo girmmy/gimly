@@ -22,6 +22,8 @@ const util = require('util');
 const execFile = util.promisify(require('child_process').execFile);
 const { desktopCapturer } = require('electron');
 const modelStateService = require('../common/services/modelStateService');
+const promptModeService = require('../common/services/promptModeService');
+const userContextService = require('../common/services/userContextService');
 
 // Try to load sharp, but don't fail if it's not available
 let sharp;
@@ -272,7 +274,17 @@ class AskService {
 
             const conversationHistory = this._formatConversationForPrompt(conversationHistoryRaw);
 
-            const systemPrompt = getSystemPrompt('gimly_analysis', conversationHistory, false);
+            // The transcript goes in the template's {{CONVERSATION_HISTORY}} placeholder and the
+            // user's own background goes in the custom-prompt slot. Passing the transcript as the
+            // custom prompt left the literal placeholder in the prompt and fed the transcript to
+            // the model as if it were the user's instructions.
+            const profile = promptModeService.getProfile();
+            const userContext = userContextService.getContext();
+            const systemPrompt = getSystemPrompt(profile, userContext, false).replace(
+                '{{CONVERSATION_HISTORY}}',
+                conversationHistory
+            );
+            console.log(`[AskService] Profile: ${profile}, user context: ${userContext.length} chars`);
 
             const messages = [
                 { role: 'system', content: systemPrompt },

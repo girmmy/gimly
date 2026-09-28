@@ -164,7 +164,8 @@ export class AskView extends LitElement {
 
         .response-container code {
             font-family: 'Monaco', 'Menlo', 'Consolas', monospace !important;
-            font-size: 11px !important;
+            font-size: 13px !important;
+            line-height: 1.55 !important;
             background: transparent !important;
             white-space: pre !important;
             word-wrap: normal !important;
@@ -210,8 +211,8 @@ export class AskView extends LitElement {
             align-items: center;
             justify-content: space-between;
             padding: 0 6px 0 12px;
-            font-size: 10px;
-            color: rgba(255, 255, 255, 0.5);
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.7);
             text-transform: lowercase;
             z-index: 1;
         }
@@ -281,7 +282,7 @@ export class AskView extends LitElement {
             flex-direction: column;
             height: 100%;
             width: 100%;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(0, 0, 0, 0.9);
             border-radius: 12px;
             outline: 0.5px rgba(255, 255, 255, 0.3) solid;
             outline-offset: -1px;
@@ -470,11 +471,10 @@ export class AskView extends LitElement {
             padding: 16px;
             padding-left: 48px;
             overflow-y: auto;
-            font-size: 14px;
-            line-height: 1.6;
+            font-size: 15px;
+            line-height: 1.65;
             background: transparent;
             min-height: 0;
-            max-height: 400px;
             position: relative;
         }
 
@@ -659,7 +659,7 @@ export class AskView extends LitElement {
 
         .response-line p {
             margin: 8px 0;
-            color: rgba(255, 255, 255, 0.9);
+            color: rgba(255, 255, 255, 0.96);
         }
 
         .response-line ul,
@@ -670,7 +670,7 @@ export class AskView extends LitElement {
 
         .response-line li {
             margin: 4px 0;
-            color: rgba(255, 255, 255, 0.9);
+            color: rgba(255, 255, 255, 0.96);
         }
 
         .response-line code {
@@ -679,7 +679,7 @@ export class AskView extends LitElement {
             padding: 2px 6px;
             border-radius: 4px;
             font-family: 'Monaco', 'Menlo', monospace;
-            font-size: 13px;
+            font-size: 13.5px;
         }
 
         .response-line pre {
@@ -1698,7 +1698,11 @@ export class AskView extends LitElement {
 
             const idealHeight = headerHeight + responseHeight + inputHeight;
 
-            const targetHeight = Math.min(700, idealHeight);
+            // A full coded solution does not fit in 700px. Grow to most of the screen instead,
+            // and stop growing once the user has sized the window themselves (the main process
+            // ignores these requests from then on).
+            const screenLimit = Math.round((window.screen?.availHeight || 900) * 0.85);
+            const targetHeight = Math.min(Math.max(320, screenLimit), idealHeight);
 
             window.api.askView.adjustWindowHeight("ask", targetHeight);
 

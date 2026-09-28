@@ -102,11 +102,34 @@ class ModelStateService extends EventEmitter {
     }
 
     async handleLocalAIStateChange(service, state) {
-        console.log(`[ModelStateService] LocalAI state changed: ${service}`, state);
-        if (!state.installed || !state.running) {
-            const types = service === 'ollama' ? ['llm'] : service === 'whisper' ? ['stt'] : [];
-            await this._autoSelectAvailableModels(types);
+        const type = service === 'ollama' ? 'llm' : service === 'whisper' ? 'stt' : null;
+
+        // These arrive on a 30s poll from two independent paths with different payload shapes,
+        // so dedupe on the only fields that matter here. Without this the branch below ran
+        // forever, re-selecting the model and writing to the DB every cycle.
+        if (!this._lastLocalAIState) this._lastLocalAIState = {};
+        const fingerprint = `${state.installed === true}:${state.running === true}`;
+        if (this._lastLocalAIState[service] === fingerprint) {
+            return;
         }
+        this._lastLocalAIState[service] = fingerprint;
+
+        console.log(`[ModelStateService] LocalAI state changed: ${service}`, state);
+
+        if (type && (!state.installed || !state.running)) {
+            // Only re-select when the model that just became unavailable is the one in use.
+            // Forcing it unconditionally overwrote a deliberate choice — auto-selection picks the
+            // first non-local provider, so any pick would revert to that on the next poll.
+            const { selectedModels } = await this.getLiveState();
+            const selected = selectedModels[type];
+            const selectedProvider = selected ? this.getProviderForModel(selected, type) : null;
+            if (!selected || selectedProvider === service) {
+                await this._autoSelectAvailableModels([type]);
+            } else {
+                console.log(`[ModelStateService] ${service} unavailable, but selected ${type} is ${selected} (${selectedProvider}); leaving it alone.`);
+            }
+        }
+
         this.emit('state-updated', await this.getLiveState());
     }
 

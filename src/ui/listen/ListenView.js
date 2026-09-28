@@ -121,7 +121,7 @@ export class ListenView extends LitElement {
             color: #ffffff;
             box-sizing: border-box;
             position: relative;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(0, 0, 0, 0.9);
             overflow: hidden;
             border-radius: 12px;
             width: 100%;

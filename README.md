@@ -37,7 +37,39 @@ npm run build       # current platform
 npm run build:win   # Windows
 ```
 
-Output lands in `dist/`. Code signing is not configured — unsigned builds will trigger Gatekeeper/SmartScreen warnings on first run; right-click → Open (macOS) or "More info → Run anyway" (Windows) to bypass.
+Output lands in `dist/`. Unsigned builds trigger Gatekeeper/SmartScreen on first run; right-click
+→ Open (macOS) or "More info → Run anyway" (Windows) to bypass.
+
+**macOS, and why permissions may be asked for repeatedly:** macOS ties Screen Recording and
+Microphone grants to an app's code signature. `npm run package` (and any build made with no
+signing identity in the keychain) produces an ad-hoc signature, which macOS cannot pin — so the
+grant does not stick and the permission screen returns on every launch. Check with:
+
+```bash
+codesign -dv --verbose=2 /Applications/Gimly.app
+```
+
+`Signature=adhoc` or `Identifier=Electron` means grants will not persist. Install an Apple
+Development certificate (Xcode → Settings → Accounts → Manage Certificates → + → Apple
+Development, free with any Apple ID), confirm it with `security find-identity -v -p codesigning`,
+then `npm run build`. Keep exactly one Gimly bundle installed: two bundles sharing the
+`com.gimmy.gimly` id fight over the same permission record.
+
+## Interview prep / answer style
+
+Settings has an **Answer style** switch:
+
+- **Live meeting** — terse, glanceable answers for a call in progress.
+- **Interview prep** — full behavioral answers (situation → action → result), complete coded
+  solutions with complexity and edge cases, and the follow-up an interviewer asks next.
+
+### Telling Gimly about yourself
+
+Gimly will not invent your history, so behavioral answers need your background. It reads
+`~/.gimly/context.md` — outside the repo, `chmod 700`, your account only. Settings → **Set up my
+context** creates it and opens it; `~/.gimly/README.md` explains the format. A folder of files
+(`~/.gimly/context/resume.md`, `projects.md`, …) works too, and `GIMLY_CONTEXT_FILE` overrides
+the location. Edits apply to the next question, no restart.
 
 ## Keyboard Shortcuts
 
@@ -48,6 +80,9 @@ Output lands in `dist/`. Code signing is not configured — unsigned builds will
 ## Notes
 
 - Personal-API-key-only: no hosted login, no auto-update, no external account.
+- macOS liquid-glass window material is off by default because it strips every window background
+  and depends on private APIs that change between macOS releases (transparent windows with
+  unreadable text). Opt in with `GIMLY_LIQUID_GLASS=1 npm start`.
 - The Firebase-backed cloud sync/auth code paths are still present in the source (not ripped out) but are unused now that the hosted-login entry points are gone — everything runs locally against your own API key.
 
 ## License

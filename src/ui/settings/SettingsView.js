@@ -21,7 +21,7 @@ export class SettingsView extends LitElement {
             flex-direction: column;
             height: 100%;
             width: 100%;
-            background: rgba(20, 20, 20, 0.8);
+            background: rgba(20, 20, 20, 0.95);
             border-radius: 12px;
             outline: 0.5px rgba(255, 255, 255, 0.2) solid;
             outline-offset: -1px;
@@ -97,7 +97,7 @@ export class SettingsView extends LitElement {
         }
 
         .account-info {
-            font-size: 11px;
+            font-size: 12px;
             color: rgba(255, 255, 255, 0.7);
             margin: 0;
         }
@@ -132,7 +132,7 @@ export class SettingsView extends LitElement {
             align-items: center;
             padding: 4px 0;
             color: white;
-            font-size: 11px;
+            font-size: 12px;
         }
 
         .shortcut-name {
@@ -153,7 +153,7 @@ export class SettingsView extends LitElement {
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 500;
             color: rgba(255, 255, 255, 0.9);
         }
@@ -176,7 +176,7 @@ export class SettingsView extends LitElement {
             border-radius: 4px;
             color: white;
             padding: 5px 10px;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 400;
             cursor: pointer;
             transition: all 0.15s ease;
@@ -231,13 +231,74 @@ export class SettingsView extends LitElement {
             color: white;
             border-radius: 4px;
             padding: 4px;
-            font-size: 11px;
+            font-size: 12px;
             margin-bottom: 4px;
             box-sizing: border-box;
         }
 
         .api-key-section input::placeholder {
             color: rgba(255, 255, 255, 0.4);
+        }
+
+        /* Answer style + private context */
+        .mode-section {
+            padding: 8px 0 4px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .mode-title {
+            font-size: 12px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.85);
+            padding: 0 4px 6px 4px;
+            display: block;
+        }
+
+        .mode-item {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            padding: 5px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+        }
+
+        .mode-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .mode-item.selected {
+            background: rgba(0, 122, 255, 0.28);
+        }
+
+        .mode-item-label {
+            font-size: 12px;
+            color: #ffffff;
+        }
+
+        .mode-item-desc {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.6);
+            line-height: 1.3;
+        }
+
+        .context-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            padding: 6px 8px 2px 8px;
+        }
+
+        .context-status {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.6);
+            line-height: 1.3;
+        }
+
+        .context-status.missing {
+            color: rgba(255, 196, 96, 0.9);
         }
 
         /* Preset Management Section */
@@ -254,19 +315,19 @@ export class SettingsView extends LitElement {
         }
 
         .preset-title {
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 500;
             color: white;
         }
 
         .preset-count {
-            font-size: 9px;
+            font-size: 10px;
             color: rgba(255, 255, 255, 0.5);
             margin-left: 4px;
         }
 
         .preset-toggle {
-            font-size: 10px;
+            font-size: 11px;
             color: rgba(255, 255, 255, 0.6);
             cursor: pointer;
             padding: 2px 4px;
@@ -295,7 +356,7 @@ export class SettingsView extends LitElement {
             border-radius: 3px;
             cursor: pointer;
             transition: all 0.15s ease;
-            font-size: 11px;
+            font-size: 12px;
             border: 1px solid transparent;
         }
 
@@ -324,7 +385,7 @@ export class SettingsView extends LitElement {
         }
 
         .preset-status {
-            font-size: 9px;
+            font-size: 10px;
             color: rgba(0, 122, 255, 0.8);
             font-weight: 500;
             margin-left: 6px;
@@ -334,7 +395,7 @@ export class SettingsView extends LitElement {
             padding: 12px 8px;
             text-align: center;
             color: rgba(255, 255, 255, 0.5);
-            font-size: 10px;
+            font-size: 11px;
             line-height: 1.4;
         }
 
@@ -354,7 +415,7 @@ export class SettingsView extends LitElement {
             justify-content: center;
             padding: 20px;
             color: rgba(255, 255, 255, 0.7);
-            font-size: 11px;
+            font-size: 12px;
         }
 
         .loading-spinner {
@@ -384,7 +445,7 @@ export class SettingsView extends LitElement {
             gap: 4px;
         }
         label {
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 500;
             color: rgba(255, 255, 255, 0.8);
             margin-left: 2px;
@@ -395,7 +456,7 @@ export class SettingsView extends LitElement {
         }
         .provider-key-group input {
             width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.2);
-            color: white; border-radius: 4px; padding: 5px 8px; font-size: 11px; box-sizing: border-box;
+            color: white; border-radius: 4px; padding: 5px 8px; font-size: 12px; box-sizing: border-box;
         }
         .key-buttons { display: flex; gap: 4px; }
         .key-buttons .settings-button { flex: 1; padding: 4px; }
@@ -406,7 +467,7 @@ export class SettingsView extends LitElement {
         }
         .model-item { 
             padding: 5px 8px; 
-            font-size: 11px; 
+            font-size: 12px; 
             border-radius: 3px; 
             cursor: pointer; 
             transition: background-color 0.15s; 
@@ -417,7 +478,7 @@ export class SettingsView extends LitElement {
         .model-item:hover { background-color: rgba(255,255,255,0.1); }
         .model-item.selected { background-color: rgba(0, 122, 255, 0.4); font-weight: 500; }
         .model-status { 
-            font-size: 9px; 
+            font-size: 10px; 
             color: rgba(255,255,255,0.6); 
             margin-left: 8px; 
         }
@@ -505,6 +566,10 @@ export class SettingsView extends LitElement {
         installingModels: { type: Object, state: true },
         // Whisper related properties
         whisperModels: { type: Array, state: true },
+        // Answer style + private context file
+        promptMode: { type: String, state: true },
+        promptModes: { type: Array, state: true },
+        userContext: { type: Object, state: true },
     };
     //////// after_modelStateService ////////
 
@@ -533,6 +598,9 @@ export class SettingsView extends LitElement {
         this.installingModels = {}; // { modelName: progress }
         // Whisper related
         this.whisperModels = [];
+        this.promptMode = 'live';
+        this.promptModes = [];
+        this.userContext = { found: false, chars: 0, primaryPath: '' };
         this.whisperProgressTracker = null; // Will be initialized when needed
         this.handleUsePicklesKey = this.handleUsePicklesKey.bind(this)
         this.autoUpdateEnabled = true;
@@ -613,13 +681,17 @@ export class SettingsView extends LitElement {
         this.isLoading = true;
         try {
             // Load essential data first
-            const [userState, modelSettings, presets, contentProtection, shortcuts] = await Promise.all([
-                window.api.settingsView.getCurrentUser(),
-                window.api.settingsView.getModelSettings(), // Facade call
-                window.api.settingsView.getPresets(),
-                window.api.settingsView.getContentProtectionStatus(),
-                window.api.settingsView.getCurrentShortcuts()
-            ]);
+            const [userState, modelSettings, presets, contentProtection, shortcuts, promptMode, promptModes, userContext] =
+                await Promise.all([
+                    window.api.settingsView.getCurrentUser(),
+                    window.api.settingsView.getModelSettings(), // Facade call
+                    window.api.settingsView.getPresets(),
+                    window.api.settingsView.getContentProtectionStatus(),
+                    window.api.settingsView.getCurrentShortcuts(),
+                    window.api.settingsView.getPromptMode(),
+                    window.api.settingsView.listPromptModes(),
+                    window.api.settingsView.getUserContextStatus()
+                ]);
             
             if (userState && userState.isLoggedIn) this.firebaseUser = userState;
             
@@ -634,6 +706,9 @@ export class SettingsView extends LitElement {
             }
 
             this.presets = presets || [];
+            this.promptMode = promptMode || 'live';
+            this.promptModes = promptModes || [];
+            this.userContext = userContext || { found: false, chars: 0, primaryPath: '' };
             this.isContentProtectionOn = contentProtection;
             this.shortcuts = shortcuts || {};
             if (this.presets.length > 0) {
@@ -1088,6 +1163,30 @@ export class SettingsView extends LitElement {
         this.showPresets = !this.showPresets;
     }
 
+    async handlePromptModeSelect(mode) {
+        if (!window.api || mode === this.promptMode) return;
+        const previous = this.promptMode;
+        this.promptMode = mode;
+        try {
+            const result = await window.api.settingsView.setPromptMode(mode);
+            if (!result?.success) throw new Error(result?.error || 'unknown error');
+        } catch (error) {
+            console.error('[SettingsView] Failed to set prompt mode:', error);
+            this.promptMode = previous;
+        }
+    }
+
+    async handleOpenUserContext() {
+        if (!window.api) return;
+        try {
+            await window.api.settingsView.openUserContextFile();
+            // Re-read after the editor closes so the character count reflects any edits.
+            this.userContext = await window.api.settingsView.getUserContextStatus();
+        } catch (error) {
+            console.error('[SettingsView] Failed to open context file:', error);
+        }
+    }
+
     async handlePresetSelect(preset) {
         this.selectedPreset = preset;
         // Here you could implement preset application logic
@@ -1202,21 +1301,21 @@ export class SettingsView extends LitElement {
                                 <div class="provider-key-group">
                                     <label>${config.name} (Local)</label>
                                     ${this.ollamaStatus.installed && this.ollamaStatus.running ? html`
-                                        <div style="padding: 8px; background: rgba(0,255,0,0.1); border-radius: 4px; font-size: 11px; color: rgba(0,255,0,0.8);">
+                                        <div style="padding: 8px; background: rgba(0,255,0,0.1); border-radius: 4px; font-size: 12px; color: rgba(0,255,0,0.8);">
                                             ✓ Ollama is running
                                         </div>
                                         <button class="settings-button full-width danger" @click=${this.handleOllamaShutdown}>
                                             Stop Ollama Service
                                         </button>
                                     ` : this.ollamaStatus.installed ? html`
-                                        <div style="padding: 8px; background: rgba(255,200,0,0.1); border-radius: 4px; font-size: 11px; color: rgba(255,200,0,0.8);">
+                                        <div style="padding: 8px; background: rgba(255,200,0,0.1); border-radius: 4px; font-size: 12px; color: rgba(255,200,0,0.8);">
                                             ⚠ Ollama installed but not running
                                         </div>
                                         <button class="settings-button full-width" @click=${() => this.handleSaveKey(id)}>
                                             Start Ollama
                                         </button>
                                     ` : html`
-                                        <div style="padding: 8px; background: rgba(255,100,100,0.1); border-radius: 4px; font-size: 11px; color: rgba(255,100,100,0.8);">
+                                        <div style="padding: 8px; background: rgba(255,100,100,0.1); border-radius: 4px; font-size: 12px; color: rgba(255,100,100,0.8);">
                                             ✗ Ollama not installed
                                         </div>
                                         <button class="settings-button full-width" @click=${() => this.handleSaveKey(id)}>
@@ -1233,7 +1332,7 @@ export class SettingsView extends LitElement {
                                 <div class="provider-key-group">
                                     <label>${config.name} (Local STT)</label>
                                     ${this.apiKeys[id] === 'local' ? html`
-                                        <div style="padding: 8px; background: rgba(0,255,0,0.1); border-radius: 4px; font-size: 11px; color: rgba(0,255,0,0.8); margin-bottom: 8px;">
+                                        <div style="padding: 8px; background: rgba(0,255,0,0.1); border-radius: 4px; font-size: 12px; color: rgba(0,255,0,0.8); margin-bottom: 8px;">
                                             ✓ Whisper is enabled
                                         </div>
                                         <button class="settings-button full-width danger" @click=${() => this.handleClearKey(id)}>
@@ -1385,6 +1484,27 @@ export class SettingsView extends LitElement {
                             </div>
                         </div>
                     `)}
+                </div>
+
+                <div class="mode-section">
+                    <span class="mode-title">Answer style</span>
+                    ${this.promptModes.map(mode => html`
+                        <div class="mode-item ${this.promptMode === mode.id ? 'selected' : ''}"
+                             @click=${() => this.handlePromptModeSelect(mode.id)}>
+                            <span class="mode-item-label">${mode.label}</span>
+                            <span class="mode-item-desc">${mode.description}</span>
+                        </div>
+                    `)}
+                    <div class="context-row">
+                        <span class="context-status ${this.userContext?.found ? '' : 'missing'}">
+                            ${this.userContext?.found
+                                ? `My context: ${this.userContext.chars.toLocaleString()} chars`
+                                : 'My context: not set up'}
+                        </span>
+                    </div>
+                    <button class="settings-button full-width" @click=${this.handleOpenUserContext}>
+                        <span>${this.userContext?.found ? 'Edit my context' : 'Set up my context'}</span>
+                    </button>
                 </div>
 
                 <div class="preset-section">

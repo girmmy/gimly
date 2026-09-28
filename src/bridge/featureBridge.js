@@ -1,5 +1,5 @@
 // src/bridge/featureBridge.js
-const { ipcMain, app, BrowserWindow } = require('electron');
+const { ipcMain, app, BrowserWindow, shell } = require('electron');
 const settingsService = require('../features/settings/settingsService');
 const authService = require('../features/common/services/authService');
 const whisperService = require('../features/common/services/whisperService');
@@ -12,6 +12,8 @@ const askService = require('../features/ask/askService');
 const listenService = require('../features/listen/listenService');
 const permissionService = require('../features/common/services/permissionService');
 const encryptionService = require('../features/common/services/encryptionService');
+const promptModeService = require('../features/common/services/promptModeService');
+const userContextService = require('../features/common/services/userContextService');
 
 module.exports = {
   // Renderer로부터의 요청을 수신하고 서비스로 전달
@@ -42,6 +44,26 @@ module.exports = {
     ipcMain.handle('open-system-preferences', async (event, section) => await permissionService.openSystemPreferences(section));
     ipcMain.handle('mark-keychain-completed', async () => await permissionService.markKeychainCompleted());
     ipcMain.handle('check-keychain-completed', async () => await permissionService.checkKeychainCompleted());
+    // The renderer has always invoked this; without a handler every launch threw
+    // "No handler registered for 'check-permissions-completed'", which the caller swallowed and
+    // then fell through to showing the permission screen again.
+    ipcMain.handle('check-permissions-completed', async () => await permissionService.checkPermissionsCompleted());
+    ipcMain.handle('mark-permissions-completed', async () => await permissionService.markPermissionsCompleted());
+
+    // Answer style (live meeting vs interview prep)
+    ipcMain.handle('prompt-mode:get', () => promptModeService.getMode());
+    ipcMain.handle('prompt-mode:list', () => promptModeService.listModes());
+    ipcMain.handle('prompt-mode:set', (event, mode) => promptModeService.setMode(mode));
+
+    // The user's private context file (outside the repo, their account only)
+    ipcMain.handle('user-context:status', () => userContextService.getStatus());
+    ipcMain.handle('user-context:open', async () => {
+        const result = userContextService.ensureContextFile();
+        if (result.success) {
+            await shell.openPath(result.path);
+        }
+        return result;
+    });
     ipcMain.handle('initialize-encryption-key', async () => {
         const userId = authService.getCurrentUserId();
         await encryptionService.initializeKey(userId);

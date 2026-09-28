@@ -1,5 +1,6 @@
 const { BrowserWindow } = require('electron');
 const { getSystemPrompt } = require('../../common/prompts/promptBuilder.js');
+const userContextService = require('../../common/services/userContextService');
 const { createLLM } = require('../../common/ai/factory');
 const sessionRepository = require('../../common/repositories/session');
 const summaryRepository = require('./repositories');
@@ -90,7 +91,10 @@ Please build upon this context while analyzing the new conversation segments.
 `;
         }
 
-        const basePrompt = getSystemPrompt('gimly_analysis', '', false);
+        // Always the analysis profile: this call produces the outline panel, and the user message
+        // below pins an exact summary format that the interview-prep answer rules would fight.
+        // The user's own context still goes in, so the outline can name their actual work.
+        const basePrompt = getSystemPrompt('gimly_analysis', userContextService.getContext(), false);
         const systemPrompt = basePrompt.replace('{{CONVERSATION_HISTORY}}', recentConversation);
 
         try {
