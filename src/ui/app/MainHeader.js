@@ -60,7 +60,7 @@ export class MainHeader extends LitElement {
             top: 0; left: 0; right: 0; bottom: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.97);
             border-radius: 9000px;
             z-index: -1;
         }
@@ -562,6 +562,18 @@ export class MainHeader extends LitElement {
         }
     }
 
+    async _handleSolveClick() {
+        if (this.wasJustDragged) return;
+
+        try {
+            if (window.api) {
+                await window.api.mainHeader.sendSolveScreenClick();
+            }
+        } catch (error) {
+            console.error('IPC invoke for solve screen button failed:', error);
+        }
+    }
+
     async _handleToggleAllWindowsVisibility() {
         if (this.wasJustDragged) return;
 
@@ -648,6 +660,15 @@ export class MainHeader extends LitElement {
                     </div>
                     <div class="icon-container">
                         ${this.renderShortcut(this.shortcuts.nextStep)}
+                    </div>
+                </div>
+
+                <div class="header-actions" @click=${() => this._handleSolveClick()}>
+                    <div class="action-text">
+                        <div class="action-text-content">Solve</div>
+                    </div>
+                    <div class="icon-container">
+                        ${this.renderShortcut(this.shortcuts.solveScreen)}
                     </div>
                 </div>
 

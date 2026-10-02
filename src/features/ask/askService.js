@@ -53,6 +53,23 @@ function normalizeUserPrompt(text) {
         .trimEnd();
 }
 
+/**
+ * What Gimly asks on the user's behalf for a screen solve, when nothing was typed. The older
+ * screen-only path sent an empty prompt and left the model to work out for itself whether it
+ * was even supposed to act on the screen. The last sentence is load-bearing: without it, a
+ * model handed a screenshot of an ordinary desktop will invent a problem rather than report
+ * that there isn't one.
+ */
+const SCREEN_SOLVE_PROMPT = [
+    'Look at my screen and solve the problem shown.',
+    'Work out what is being asked (a coding problem, an error or stack trace, a form, a written',
+    'question, a diagram) and answer it in full, exactly as if I had typed it out and asked you.',
+    'If nothing on screen is solvable, say in one line what you see and stop.',
+].join(' ');
+
+/** Short label shown in the Ask window for a screen solve, in place of the full instruction. */
+const SCREEN_SOLVE_LABEL = "Solve what's on screen";
+
 async function captureScreenshot(options = {}) {
     if (process.platform === 'darwin') {
         try {
@@ -194,6 +211,19 @@ class AskService {
         }
     }
 
+    /**
+     * Answer whatever is on screen, with nothing typed. Distinct from toggleAskButton's
+     * screen-only path, which only fires when the Ask window is already open and showing its
+     * text input: this one runs from any state, including fully hidden, so it can sit behind a
+     * single global shortcut.
+     * @returns {Promise<{success: boolean, response?: string, error?: string}>}
+     */
+    async solveScreen() {
+        console.log('[AskService] Screen solve requested.');
+        this.state.isVisible = true;
+        return await this.sendMessage(SCREEN_SOLVE_PROMPT, [], { displayText: SCREEN_SOLVE_LABEL });
+    }
+
     async closeAskWindow () {
             if (this.abortController) {
                 this.abortController.abort('Window closed by user');
@@ -234,14 +264,16 @@ class AskService {
      * @param {string} userPrompt
      * @returns {Promise<{success: boolean, response?: string, error?: string}>}
      */
-    async sendMessage(userPrompt, conversationHistoryRaw=[]) {
+    async sendMessage(userPrompt, conversationHistoryRaw=[], options = {}) {
         userPrompt = normalizeUserPrompt(userPrompt);
         internalBridge.emit('window:requestVisibility', { name: 'ask', visible: true });
         this.state = {
             ...this.state,
             isLoading: true,
             isStreaming: false,
-            currentQuestion: userPrompt,
+            // The model and the transcript get the real prompt; the window can show something
+            // shorter when the prompt was generated for the user rather than typed by them.
+            currentQuestion: options.displayText || userPrompt,
             currentResponse: '',
             showTextInput: false,
         };
@@ -493,3 +525,8 @@ class AskService {
 const askService = new AskService();
 
 module.exports = askService;
+// Named exports for tests; the service instance stays the default export so every existing
+// `require('.../askService')` keeps working unchanged.
+module.exports.SCREEN_SOLVE_PROMPT = SCREEN_SOLVE_PROMPT;
+module.exports.SCREEN_SOLVE_LABEL = SCREEN_SOLVE_LABEL;
+module.exports.normalizeUserPrompt = normalizeUserPrompt;

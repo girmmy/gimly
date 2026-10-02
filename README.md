@@ -55,6 +55,21 @@ Development, free with any Apple ID), confirm it with `security find-identity -v
 then `npm run build`. Keep exactly one Gimly bundle installed: two bundles sharing the
 `com.gimmy.gimly` id fight over the same permission record.
 
+## Solving what's on screen
+
+`Ctrl/Cmd + Shift + Enter`, or the **Solve** button in the header, captures the screen and
+answers whatever problem is on it without you typing anything. It works from any state,
+including with every window hidden, so a single press goes from nothing visible to an answer.
+
+Use it on a coding problem, an error or stack trace, a form, a written question, a diagram.
+With nothing solvable on screen it says what it sees in one line rather than inventing a
+problem to solve. The answer style follows the **Answer style** setting below, so an algorithm
+problem picked up in *Interview prep* comes back with the full solution, complexity and edge
+cases.
+
+This is distinct from `Ctrl/Cmd + Enter`, which opens the Ask window so you can type, and
+sends the screen along with whatever you ask.
+
 ## Interview prep / answer style
 
 Settings has an **Answer style** switch:
@@ -75,7 +90,21 @@ the location. Edits apply to the next question, no restart.
 
 - `Ctrl/Cmd + \` — show/hide the main window
 - `Ctrl/Cmd + Enter` — ask the AI using everything seen/heard so far
+- `Ctrl/Cmd + Shift + Enter` — solve whatever is on screen, without typing (see below)
 - `Ctrl/Cmd + Arrows` — move the window
+
+All of these are rebindable in Settings → Shortcuts.
+
+## Tests
+
+```bash
+npm test
+```
+
+Node's built-in runner (`node --test`), no test framework dependency. The main-process modules
+pull in electron, sqlite and network clients at require time, so `test/helpers/loadWithStubs.js`
+seeds `require.cache` with stubs before loading the module under test. `npm run test:watch`
+reruns on change.
 
 ## Notes
 

@@ -66,6 +66,7 @@ class ShortcutsService {
             toggleVisibility: isMac ? 'Cmd+\\' : 'Ctrl+\\',
             toggleClickThrough: isMac ? 'Cmd+M' : 'Ctrl+M',
             nextStep: isMac ? 'Cmd+Enter' : 'Ctrl+Enter',
+            solveScreen: isMac ? 'Cmd+Shift+Enter' : 'Ctrl+Shift+Enter',
             manualScreenshot: isMac ? 'Cmd+Shift+S' : 'Ctrl+Shift+S',
             previousResponse: isMac ? 'Cmd+[' : 'Ctrl+[',
             nextResponse: isMac ? 'Cmd+]' : 'Ctrl+]',
@@ -212,6 +213,11 @@ class ShortcutsService {
                     break;
                 case 'nextStep':
                     callback = () => askService.toggleAskButton(true);
+                    break;
+                case 'solveScreen':
+                    // Deliberately not gated on window visibility: the point of this one is to
+                    // work while everything is hidden, in a single press.
+                    callback = () => askService.solveScreen();
                     break;
                 case 'scrollUp':
                     callback = () => {

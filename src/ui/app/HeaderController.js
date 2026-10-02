@@ -228,8 +228,13 @@ class HeaderTransitionManager {
 
     async _resizeForMain() {
         if (!window.api) return;
-        console.log('[HeaderController] _resizeForMain: Resizing window to 353x47');
-        return window.api.headerController.resizeHeaderWindow({ width: 353, height: 47 }).catch(() => {});
+        // Fits MainHeader's row: listen button (78) + Ask (86) + Solve (118) + Show/Hide (126)
+        // + settings (32) + the header's 23px padding = 466px measured, plus a few px of slack.
+        // The pill is width:max-content so surplus window width is transparent, but too little
+        // clips it (.header is overflow:hidden) and too much leaves a dead click zone.
+        // Adding or renaming an action means re-measuring this.
+        console.log('[HeaderController] _resizeForMain: Resizing window to 472x47');
+        return window.api.headerController.resizeHeaderWindow({ width: 472, height: 47 }).catch(() => {});
     }
 
     async _resizeForApiKey(height = 370) {
