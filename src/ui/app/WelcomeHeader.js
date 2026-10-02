@@ -17,7 +17,7 @@ export class WelcomeHeader extends LitElement {
             box-sizing: border-box;
             height: auto;
             padding: 24px 16px;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.97);
             box-shadow: 0px 0px 0px 1.5px rgba(255, 255, 255, 0.64) inset;
             border-radius: 16px;
             flex-direction: column;

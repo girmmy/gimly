@@ -282,11 +282,10 @@ export class AskView extends LitElement {
             flex-direction: column;
             height: 100%;
             width: 100%;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.97);
             border-radius: 12px;
             outline: 0.5px rgba(255, 255, 255, 0.3) solid;
             outline-offset: -1px;
-            backdrop-filter: blur(1px);
             box-sizing: border-box;
             position: relative;
             overflow: hidden;
@@ -301,10 +300,9 @@ export class AskView extends LitElement {
             bottom: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.15);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            background: rgba(0, 0, 0, 0.5);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
             border-radius: 12px;
-            filter: blur(10px);
             z-index: -1;
         }
 
