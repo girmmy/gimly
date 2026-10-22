@@ -321,3 +321,6 @@ module.exports = {
     createLLM,
     createStreamingLLM
 };
+// Exported for tests: screenshots are JPEG, and mislabelling them image/png made Gemini
+// answer without really reading the screen.
+module.exports.inlineDataFromDataUrl = inlineDataFromDataUrl;
