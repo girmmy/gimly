@@ -112,6 +112,9 @@ reruns on change.
 - macOS liquid-glass window material is off by default because it strips every window background
   and depends on private APIs that change between macOS releases (transparent windows with
   unreadable text). Opt in with `GIMLY_LIQUID_GLASS=1 npm start`.
+- DevTools stays shut unless you ask for it: `GIMLY_DEVTOOLS=1 npm start`. It used to open for
+  every window on a source run, which meant five detached inspector windows fighting the app for
+  focus.
 - The Firebase-backed cloud sync/auth code paths are still present in the source (not ripped out) but are unused now that the hosted-login entry points are gone — everything runs locally against your own API key.
 
 ## License

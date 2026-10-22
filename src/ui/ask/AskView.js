@@ -39,6 +39,16 @@ function normalizeCodeForClipboard(text) {
     return dedented.join('\n');
 }
 
+// Height of what is actually rendered inside a scroll container. scrollHeight never reports
+// less than the room the container already has, and .response-container is stretched to the
+// window, so measuring it directly pins the Ask window at its tallest for the rest of the
+// session instead of letting it shrink back to the answer.
+function renderedContentHeight(container) {
+    const bottom = Array.from(container.children)
+        .reduce((max, child) => Math.max(max, child.offsetTop + child.offsetHeight), 0);
+    return bottom + parseFloat(getComputedStyle(container).paddingBottom || 0);
+}
+
 function getCodeLanguage(codeEl) {
     const lang = [...codeEl.classList]
         .map(cls => cls.replace(/^lang(?:uage)?-/, ''))
@@ -874,20 +884,6 @@ export class AskView extends LitElement {
 
         document.addEventListener('keydown', this.handleEscKey);
 
-        this.resizeObserver = new ResizeObserver(entries => {
-            for (const entry of entries) {
-                const needed = entry.contentRect.height;
-                const current = window.innerHeight;
-
-                if (needed > current - 4) {
-                    this.requestWindowResize(Math.ceil(needed));
-                }
-            }
-        });
-
-        const container = this.shadowRoot?.querySelector('.ask-container');
-        if (container) this.resizeObserver.observe(container);
-
         this.handleQuestionFromAssistant = (event, question) => {
             console.log('AskView: Received question from ListenView:', question);
             this.handleSendText(null, question);
@@ -929,7 +925,6 @@ export class AskView extends LitElement {
 
     disconnectedCallback() {
         super.disconnectedCallback();
-        this.resizeObserver?.disconnect();
 
         console.log('📱 AskView disconnectedCallback - IPC 이벤트 리스너 제거');
 
@@ -1342,12 +1337,6 @@ export class AskView extends LitElement {
         e.clipboardData.setData('text/plain', normalizeCodeForClipboard(selection.toString()));
     }
 
-    requestWindowResize(targetHeight) {
-        if (window.api) {
-            window.api.askView.adjustWindowHeight('ask', targetHeight);
-        }
-    }
-
     animateHeaderText(text) {
         this.headerAnimating = true;
         this.requestUpdate();
@@ -1691,7 +1680,7 @@ export class AskView extends LitElement {
             if (!headerEl || !responseEl) return;
 
             const headerHeight = headerEl.classList.contains('hidden') ? 0 : headerEl.offsetHeight;
-            const responseHeight = responseEl.scrollHeight;
+            const responseHeight = responseEl.classList.contains('hidden') ? 0 : renderedContentHeight(responseEl);
             const inputHeight = (inputEl && !inputEl.classList.contains('hidden')) ? inputEl.offsetHeight : 0;
 
             const idealHeight = headerHeight + responseHeight + inputHeight;

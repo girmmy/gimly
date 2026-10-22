@@ -26,6 +26,13 @@ class GeminiProvider {
 }
 
 
+// Screenshots reach us as JPEG data URLs. Both multimodal call sites below used to hardcode
+// image/png, so Gemini was handed a mislabelled image and answered without really reading it.
+function inlineDataFromDataUrl(dataUrl) {
+  const [header = "", data = ""] = String(dataUrl).split(",")
+  return { mimeType: header.match(/^data:([^;,]+)/)?.[1] || "image/jpeg", data }
+}
+
 /**
  * Creates a Gemini STT session
  * @param {object} opts - Configuration options
@@ -174,13 +181,7 @@ function createLLM({ apiKey, model = "gemini-2.5-flash", temperature = 0.7, maxT
           } else if (part.type === "text") {
             geminiContent.push(part.text)
           } else if (part.type === "image_url" && part.image_url) {
-            const base64Data = part.image_url.url.split(",")[1]
-            geminiContent.push({
-              inlineData: {
-                mimeType: "image/png",
-                data: base64Data,
-              },
-            })
+            geminiContent.push({ inlineData: inlineDataFromDataUrl(part.image_url.url) })
           }
         }
         content = geminiContent
@@ -253,13 +254,7 @@ function createStreamingLLM({ apiKey, model = "gemini-2.5-flash", temperature = 
                 } else if (part.type === "text") {
                   geminiContent.push(part.text)
                 } else if (part.type === "image_url" && part.image_url) {
-                  const base64Data = part.image_url.url.split(",")[1]
-                  geminiContent.push({
-                    inlineData: {
-                      mimeType: "image/png",
-                      data: base64Data,
-                    },
-                  })
+                  geminiContent.push({ inlineData: inlineDataFromDataUrl(part.image_url.url) })
                 }
               }
             } else {
