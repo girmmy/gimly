@@ -3,14 +3,43 @@
 const path = require('node:path');
 const Module = require('node:module');
 
+// Stub frames for the loads currently in flight, most recent last. A frame stays active until
+// its restore() runs, so a dependency required lazily inside a method still sees the stub.
+const activeStubs = [];
+let originalLoad = null;
+
+function installHook() {
+    if (originalLoad) return;
+    originalLoad = Module._load;
+    Module._load = function (request, parent, isMain) {
+        for (let i = activeStubs.length - 1; i >= 0; i--) {
+            if (Object.prototype.hasOwnProperty.call(activeStubs[i], request)) {
+                return activeStubs[i][request];
+            }
+        }
+        return originalLoad.call(this, request, parent, isMain);
+    };
+}
+
+function uninstallHook() {
+    if (originalLoad && activeStubs.length === 0) {
+        Module._load = originalLoad;
+        originalLoad = null;
+    }
+}
+
 /**
  * Loads a CommonJS module with some of its dependencies replaced.
  *
  * Gimly's main-process modules pull in electron, sqlite repositories and network clients at
  * require time, so they cannot simply be required inside a plain `node --test` process. Rather
  * than add a test framework with its own module registry (vitest wants a newer esbuild than the
- * renderer build is pinned to), this seeds `require.cache` with stub entries before loading the
- * module under test, and restores the cache afterwards.
+ * renderer build is pinned to), this intercepts `require` for the duration of the load and
+ * hands back the stub for any specifier listed.
+ *
+ * Interception is by specifier rather than by resolved path so the suite runs against a bare
+ * checkout: resolving 'electron' needs node_modules, which is exactly what a stubbed test is
+ * meant not to need.
  *
  * @param {string} modulePath Absolute path, or one relative to the repo root, of the module under test.
  * @param {Record<string, unknown>} stubs Map of specifier (as written inside the module under
@@ -20,49 +49,29 @@ const Module = require('node:module');
 function loadWithStubs(modulePath, stubs = {}) {
     const repoRoot = path.resolve(__dirname, '..', '..');
     const absolute = path.isAbsolute(modulePath) ? modulePath : path.join(repoRoot, modulePath);
-    const baseDir = path.dirname(absolute);
 
-    const touched = [];
-
-    const remember = resolved => {
-        touched.push({
-            id: resolved,
-            previous: Object.prototype.hasOwnProperty.call(require.cache, resolved)
-                ? require.cache[resolved]
-                : undefined,
-        });
+    const frame = { ...stubs };
+    const drop = () => {
+        const index = activeStubs.indexOf(frame);
+        if (index !== -1) activeStubs.splice(index, 1);
+        uninstallHook();
     };
 
-    for (const [specifier, exports] of Object.entries(stubs)) {
-        let resolved;
-        try {
-            resolved = require.resolve(specifier, { paths: [baseDir] });
-        } catch {
-            // A specifier that resolves to nothing on disk (an optional native dep that was never
-            // installed, say) still needs a cache key. Use a stable synthetic one.
-            resolved = path.join(baseDir, `__stub__${specifier.replace(/[^\w]/g, '_')}`);
-        }
+    installHook();
+    activeStubs.push(frame);
 
-        remember(resolved);
-        require.cache[resolved] = new Module(resolved, null);
-        require.cache[resolved].filename = resolved;
-        require.cache[resolved].loaded = true;
-        require.cache[resolved].exports = exports;
+    let loaded;
+    try {
+        delete require.cache[absolute];
+        loaded = require(absolute);
+    } catch (error) {
+        drop();
+        delete require.cache[absolute];
+        throw error;
     }
 
-    remember(absolute);
-    delete require.cache[absolute];
-
-    const loaded = require(absolute);
-
     const restore = () => {
-        for (const { id, previous } of touched) {
-            if (previous === undefined) {
-                delete require.cache[id];
-            } else {
-                require.cache[id] = previous;
-            }
-        }
+        drop();
         delete require.cache[absolute];
     };
 

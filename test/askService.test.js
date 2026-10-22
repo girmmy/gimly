@@ -8,6 +8,12 @@ const { fakeChildProcess, fakeElectron, fakeAskWindow } = require('./helpers/fak
 
 const ASK_SERVICE = 'src/features/ask/askService.js';
 
+// captureScreenshot branches on the platform, and these tests cover the macOS branch: the
+// child_process fake stands in for `screencapture`. Pin it so the suite exercises that branch
+// wherever it runs, instead of whichever branch the host happens to take. Node's test runner
+// gives each file its own process, so this stays local to this one.
+Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
+
 /**
  * Builds an askService whose every outbound dependency is captured rather than executed.
  * `streamChat` records the messages the model would have received and then throws, which is
